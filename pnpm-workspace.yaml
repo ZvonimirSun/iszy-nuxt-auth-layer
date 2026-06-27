@@ -1,0 +1,11 @@
+shellEmulator: true
+
+allowBuilds:
+  '@parcel/watcher': false
+  esbuild: false
+  unrs-resolver: false
+
+ignoredBuiltDependencies:
+  - '@parcel/watcher'
+  - esbuild
+  - unrs-resolver

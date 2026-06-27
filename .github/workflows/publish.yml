@@ -1,0 +1,42 @@
+name: Node.js Package
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  MAIN_BRANCH: main
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          cache: true
+          run_install: true
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Check published version
+        id: published
+        shell: bash
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          if npm view "@zvonimirsun/iszy-nuxt-auth-layer@$VERSION" version >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish
+        if: github.ref_name == env.MAIN_BRANCH && steps.published.outputs.exists == 'false'
+        run: pnpm publish --access public
