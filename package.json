@@ -1,6 +1,6 @@
 {
   "name": "@zvonimirsun/iszy-nuxt-auth-layer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "private": false,
   "packageManager": "pnpm@11.7.0",
@@ -27,8 +27,8 @@
     "LICENSE"
   ],
   "scripts": {
-    "postinstall": "nuxt prepare",
-    "typecheck": "nuxt typecheck"
+    "prepare:types": "nuxt prepare",
+    "typecheck": "nuxt prepare && nuxt typecheck"
   },
   "dependencies": {
     "@zvonimirsun/iszy-common": "^1.2.0",
