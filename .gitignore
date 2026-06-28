@@ -1,10 +1,35 @@
+# Dependencies
 node_modules
+
+# Nuxt / Nitro
 .nuxt
 .output
+.nitro
 .data
+
+# Local environment
 .env
 .env.*
 !.env.example
+.npmrc
+
+# Package artifacts
 *.tgz
+
+# Logs
+logs
+*.log
 npm-debug.log*
 pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test / coverage output
+coverage
+.vitest
+
+# Editor / OS files
+.idea
+.vscode
+.DS_Store
+Thumbs.db
