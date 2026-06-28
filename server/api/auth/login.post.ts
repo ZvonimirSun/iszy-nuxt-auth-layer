@@ -1,6 +1,6 @@
 import type { PublicUser, ResultDto } from '@zvonimirsun/iszy-common'
 import type { FetchError } from 'ofetch'
-import type { PublicSimpleUser } from '#shared/types/auth'
+import type { PublicSimpleUser } from '##shared/types/auth'
 
 interface LoginFailureData {
   code: 'LOGIN_FAILED' | 'LOGIN_BANNED'

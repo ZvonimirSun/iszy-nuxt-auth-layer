@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3'
 import type { StringValue } from 'ms'
-import type { SessionData, SessionTombstone } from '#shared/types/auth'
+import type { SessionData, SessionTombstone } from '##shared/types/auth'
 import { randomBytes } from 'node:crypto'
 import ms from 'ms'
 

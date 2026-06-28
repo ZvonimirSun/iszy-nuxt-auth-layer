@@ -1,4 +1,4 @@
-import type { OAuthStateData } from '#shared/types/auth'
+import type { OAuthStateData } from '##shared/types/auth'
 import ms from 'ms'
 
 export function getStateKey(state: string): string {

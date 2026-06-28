@@ -1,5 +1,5 @@
 import type { PublicUser, ResultDto } from '@zvonimirsun/iszy-common'
-import type { PublicSimpleUser } from '#shared/types/auth'
+import type { PublicSimpleUser } from '##shared/types/auth'
 
 export default defineEventHandler(async (event): Promise<ResultDto<{
   logged: boolean

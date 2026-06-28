@@ -1,4 +1,12 @@
+import { fileURLToPath } from 'node:url'
+
 export default defineNuxtConfig({
+  $meta: {
+    name: 'iszy-nuxt-auth-layer',
+  },
+  alias: {
+    '##shared': fileURLToPath(new URL('./shared', import.meta.url)),
+  },
   runtimeConfig: {
     public: {
       title: '',

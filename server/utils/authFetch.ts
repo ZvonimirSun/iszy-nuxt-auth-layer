@@ -2,7 +2,7 @@ import type { PublicUser, ResultDto } from '@zvonimirsun/iszy-common'
 import type { H3Event } from 'h3'
 import type { NitroFetchRequest, TypedInternalResponse } from 'nitropack'
 import type { FetchError } from 'ofetch'
-import type { SessionData } from '#shared/types/auth'
+import type { SessionData } from '##shared/types/auth'
 import { getProxyRequestHeaders } from 'h3'
 
 export async function proxyFetch(event: H3Event) {
