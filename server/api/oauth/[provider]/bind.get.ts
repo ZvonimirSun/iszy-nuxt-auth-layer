@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
     method: 'POST',
   })
   const code = res.data!
-  const state = random()
+  const state = randomState()
 
   await setState(state, {
     isBind: true,

@@ -2,7 +2,7 @@ export default defineEventHandler(async (event) => {
   const { apiOrigin } = usePublicConfig()
   const { provider } = event.context.params as { provider: string }
   const url = getRequestURL(event)
-  const state = random()
+  const state = randomState()
 
   await setState(state, {})
 
