@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
   const { provider } = event.context.params as { provider: string }
   const url = getRequestURL(event)
 
-  const res = await authFetch<ResultDto<string>>(event, '/oauth/code', {
+  const res = await authFetch(event)<ResultDto<string>>('/oauth/code', {
     method: 'POST',
   })
   const code = res.data!

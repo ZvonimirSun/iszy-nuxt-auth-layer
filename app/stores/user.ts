@@ -1,5 +1,6 @@
 import type { Device, ResultDto } from '@zvonimirsun/iszy-common'
 import type { PublicSimpleUser } from '##shared/types/auth'
+import type { Fetcher } from '##shared/types/fetcher'
 import dayjs from 'dayjs'
 import { acceptHMRUpdate, defineStore } from 'pinia'
 
@@ -98,7 +99,7 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  async function pullProfile(force?: boolean, fetcher: typeof $fetch = $fetch) {
+  async function pullProfile(force?: boolean, fetcher: Fetcher = $fetch) {
     // 1. 非强制刷新且已拉取成功，直接返回
     if (profilePulled.value && !force) {
       return true
@@ -171,7 +172,7 @@ export const useUserStore = defineStore('user', () => {
     return pullProfilePromise
   }
 
-  async function updateProfile(data?: PublicSimpleUser, fetcher?: typeof $fetch) {
+  async function updateProfile(data?: PublicSimpleUser, fetcher?: Fetcher) {
     profile.value = data
     authEvents.emit('profileUpdated', {
       profile: data,
@@ -179,7 +180,7 @@ export const useUserStore = defineStore('user', () => {
     })
   }
 
-  async function removeProfile(fetcher?: typeof $fetch) {
+  async function removeProfile(fetcher?: Fetcher) {
     await updateProfile(undefined, fetcher)
     authEvents.emit('profileRemoved', {
       fetcher,

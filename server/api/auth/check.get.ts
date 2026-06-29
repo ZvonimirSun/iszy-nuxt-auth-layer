@@ -17,7 +17,7 @@ export default defineEventHandler(async (event): Promise<ResultDto<{
   }
 
   try {
-    const res = await authFetch<ResultDto<PublicUser>>(event, '/user/me')
+    const res = await authFetch(event)<ResultDto<PublicUser>>('/user/me')
     if (res.success && res.data) {
       return {
         success: true,

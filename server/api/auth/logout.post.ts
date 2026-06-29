@@ -16,7 +16,7 @@ export default defineEventHandler(async (event): Promise<ResultDto<void>> => {
   }
 
   try {
-    await authFetch(event, '/auth/logout', {
+    await authFetch(event)('/auth/logout', {
       method: 'POST',
       query,
     })

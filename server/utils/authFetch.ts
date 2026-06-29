@@ -1,8 +1,8 @@
 import type { PublicUser, ResultDto } from '@zvonimirsun/iszy-common'
 import type { H3Event } from 'h3'
-import type { NitroFetchRequest, TypedInternalResponse } from 'nitropack'
 import type { FetchError } from 'ofetch'
 import type { SessionData } from '##shared/types/auth'
+import type { Fetcher } from '##shared/types/fetcher'
 import { getProxyRequestHeaders } from 'h3'
 
 export async function proxyFetch(event: H3Event) {
@@ -10,7 +10,7 @@ export async function proxyFetch(event: H3Event) {
   const { apiOrigin } = usePublicConfig()
   const target = apiOrigin + event.path.slice(4)
 
-  const headers = getForwardRequestHeaders(event)
+  const headers = _getForwardRequestHeaders(event)
   headers['accept-encoding'] = 'identity'
 
   const body = ['GET', 'HEAD'].includes(event.method) ? undefined : await readRawBody(event)
@@ -34,59 +34,63 @@ export async function proxyFetch(event: H3Event) {
   let res = await doRequest()
   if (sessionId && res.status === 401) {
     try {
-      useRedisSession(event, await refreshWithLock(sessionId, async () => refreshToken(event)))
+      useRedisSession(event, await _refreshWithLock(sessionId, async () => _refreshToken(event)))
     }
     catch {
       await destroyRedisSession(event)
-      return pipeResponse(event, res)
+      return _pipeResponse(event, res)
     }
     res = await doRequest()
   }
-  return pipeResponse(event, res)
+  return _pipeResponse(event, res)
 }
 
-export async function authFetch<T = unknown>(event: H3Event, ...params: Parameters<typeof $fetch>): Promise<TypedInternalResponse<NitroFetchRequest, T>> {
+export function authFetch(event: H3Event): Fetcher {
+  return createAuthFetch(event)
+}
+
+function createAuthFetch(event: H3Event): Fetcher {
   const sessionId = getSessionId(event)
   const { apiOrigin } = usePublicConfig()
-  const [url, opts = {}] = params
-  const headers: Record<string, string> = {
-    ...getForwardRequestHeaders(event),
-    ...(opts.headers as Record<string, string> | undefined),
-  }
+  const baseFetch = $fetch as (request: unknown, options?: Record<string, unknown>) => Promise<unknown>
 
-  opts.headers = headers
-  opts.baseURL = apiOrigin
-  const fetcher = $fetch as unknown as (request: NitroFetchRequest, options?: typeof opts) => Promise<T>
-
-  const doRequest = async () => {
+  const authFetcher = async (url: unknown, opts: Record<string, unknown> = {}) => {
+    const headers: Record<string, string> = {
+      ..._getForwardRequestHeaders(event),
+      ...(opts.headers as Record<string, string> | undefined),
+    }
+    opts.headers = headers
+    opts.baseURL = apiOrigin
     if (sessionId) {
       const sessionData = await getRedisSession(event)
       if (sessionData) {
         headers.authorization = `Bearer ${sessionData.access_token}`
       }
     }
-    return fetcher(url, opts)
+    return baseFetch(url, opts)
   }
 
-  try {
-    return await doRequest() as TypedInternalResponse<NitroFetchRequest, T>
-  }
-  catch (error) {
-    if (sessionId && (error as FetchError)?.response?.status === 401) {
-      try {
-        useRedisSession(event, await refreshWithLock(sessionId, async () => refreshToken(event)))
-        return await doRequest() as TypedInternalResponse<NitroFetchRequest, T>
-      }
-      catch {
-        await destroyRedisSession(event)
-        throw error
-      }
+  return (async (url: unknown, opts?: Record<string, unknown>) => {
+    try {
+      return await authFetcher(url, opts)
     }
-    throw error
-  }
+    catch (error) {
+      if (sessionId && (error as FetchError)?.response?.status === 401) {
+        try {
+          useRedisSession(event, await _refreshWithLock(sessionId, async () => _refreshToken(event)))
+          return await authFetcher(url, opts)
+        }
+        catch {
+          await destroyRedisSession(event)
+          throw error
+        }
+      }
+      throw error
+    }
+  }) as Fetcher
 }
 
-async function refreshToken(event: H3Event): Promise<SessionData> {
+async function _refreshToken(event: H3Event): Promise<SessionData> {
   const sessionData = await getRedisSession(event)
   if (!sessionData) {
     throw new Error('REFRESH_FAILED')
@@ -100,7 +104,7 @@ async function refreshToken(event: H3Event): Promise<SessionData> {
   }>>(`${apiOrigin}/auth/refresh`, {
     method: 'POST',
     headers: {
-      ...getForwardRequestHeaders(event),
+      ..._getForwardRequestHeaders(event),
       Authorization: `Bearer ${sessionData.refresh_token}`,
     },
   })
@@ -117,7 +121,7 @@ async function refreshToken(event: H3Event): Promise<SessionData> {
 
 const locks = new Map<string, Promise<SessionData>>()
 
-async function refreshWithLock(sessionId: string, fn: () => Promise<SessionData>) {
+async function _refreshWithLock(sessionId: string, fn: () => Promise<SessionData>) {
   if (locks.has(sessionId)) {
     return locks.get(sessionId)!
   }
@@ -135,7 +139,7 @@ async function refreshWithLock(sessionId: string, fn: () => Promise<SessionData>
   return promise
 }
 
-function getForwardRequestHeaders(event: H3Event) {
+function _getForwardRequestHeaders(event: H3Event) {
   const headers = getProxyRequestHeaders(event, { host: false })
   const remoteAddr = getRequestIP(event, { xForwardedFor: true }) || ''
   const xForwardedFor = headers['x-forwarded-for'] || remoteAddr
@@ -149,7 +153,7 @@ function getForwardRequestHeaders(event: H3Event) {
   return headers
 }
 
-async function pipeResponse(event: H3Event, res: Response) {
+async function _pipeResponse(event: H3Event, res: Response) {
   setResponseStatus(event, res.status)
   for (const [key, value] of res.headers) {
     if (key.toLowerCase() === 'set-cookie') {

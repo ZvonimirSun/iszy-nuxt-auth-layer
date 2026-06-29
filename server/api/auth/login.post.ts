@@ -26,11 +26,11 @@ export default defineEventHandler(async (event): Promise<ResultDto<PublicSimpleU
   }
 
   try {
-    const res = await authFetch<ResultDto<{
+    const res = await authFetch(event)<ResultDto<{
       access_token: string
       refresh_token: string
       profile: PublicUser
-    }>>(event, '/auth/login', {
+    }>>('/auth/login', {
       method: 'POST',
       body: {
         username: body.userName.trim(),

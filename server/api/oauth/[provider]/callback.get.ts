@@ -60,11 +60,11 @@ export default defineEventHandler(async (event) => {
 
   if (!errorMessage) {
     try {
-      const res = await authFetch<ResultDto<{
+      const res = await authFetch(event)<ResultDto<{
         access_token: string
         refresh_token: string
         profile: PublicUser
-      }>>(event, '/oauth/token', {
+      }>>('/oauth/token', {
         method: 'POST',
         query: {
           access_token: code,
