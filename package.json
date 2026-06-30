@@ -27,28 +27,32 @@
     "LICENSE"
   ],
   "scripts": {
-    "postinstall": "nuxt prepare",
-    "typecheck": "nuxt typecheck"
+    "dev": "nuxt dev .playground",
+    "postinstall": "nuxt prepare .playground",
+    "typecheck": "nuxt typecheck .playground"
   },
   "dependencies": {
     "@zvonimirsun/iszy-common": "^1.2.0",
-    "dayjs": "^1.11.21",
     "mitt": "^3.0.1",
     "ms": "^2.1.3",
-    "ofetch": "^1.5.1"
+    "ofetch": "^1.5.1",
+    "zod": "^4.4.3"
   },
   "peerDependencies": {
+    "@nuxt/ui": ">=4.0.0",
     "@pinia/nuxt": ">=0.11.0",
     "nuxt": ">=4.0.0",
     "pinia": ">=3.0.0"
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.15.2",
+    "@nuxt/ui": "^4.9.0",
     "@pinia/nuxt": "0.11.3",
     "@types/ms": "^2.1.0",
     "@types/node": "^25.9.1",
     "nuxt": "^4.4.8",
     "pinia": "^3.0.4",
+    "tailwindcss": "^4.3.2",
     "typescript": "^6.0.3",
     "vue-tsc": "^3.3.3"
   },

@@ -17,3 +17,11 @@ export interface SessionTombstone {
 export interface OAuthStateData {
   isBind?: boolean
 }
+
+export interface AuthFeatures {
+  authMode: 'local' | 'sso'
+  publicRegister: boolean
+  sso: {
+    title: string
+  }
+}

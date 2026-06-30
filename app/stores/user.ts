@@ -1,7 +1,6 @@
 import type { Device, ResultDto } from '@zvonimirsun/iszy-common'
-import type { PublicSimpleUser } from '##shared/types/auth'
+import type { AuthFeatures, PublicSimpleUser } from '##shared/types/auth'
 import type { Fetcher } from '##shared/types/fetcher'
-import dayjs from 'dayjs'
 import { acceptHMRUpdate, defineStore } from 'pinia'
 
 interface LoginAttemptFailureData {
@@ -21,9 +20,22 @@ interface LoginBanFailureData {
 type LoginFailureData = LoginAttemptFailureData | LoginBanFailureData
 type LoginResultData = PublicSimpleUser | LoginFailureData
 
+function formatDeviceTime(value?: string | number | Date) {
+  if (!value) {
+    return ''
+  }
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+  const pad = (item: number) => item.toString().padStart(2, '0')
+  return `${date.getFullYear()}年${pad(date.getMonth() + 1)}月${pad(date.getDate())}日 ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
 export const useUserStore = defineStore('user', () => {
   const profilePulled = ref(false)
   const profile = ref<PublicSimpleUser>()
+  const authFeatures = ref<AuthFeatures>()
   const logged = computed(() => {
     return !!profile.value
   })
@@ -32,6 +44,7 @@ export const useUserStore = defineStore('user', () => {
     logged: boolean
     profile?: PublicSimpleUser
   }>> | null = null
+  let authFeaturesPromise: Promise<AuthFeatures> | null = null
   let pullProfileResolve: ((value: ResultDto<{ logged: boolean, profile?: PublicSimpleUser }>) => void) | null
   let pullProfileReject: ((value: unknown) => void) | null
   let pullProfileAbortController: AbortController | null = null // 用于中断请求
@@ -96,6 +109,31 @@ export const useUserStore = defineStore('user', () => {
     }
     else {
       throw new Error(data?.message || '登出失败')
+    }
+  }
+
+  async function getAuthFeatures(force = false, fetcher: Fetcher = $fetch) {
+    if (authFeatures.value && !force) {
+      return authFeatures.value
+    }
+    if (authFeaturesPromise && !force) {
+      return authFeaturesPromise
+    }
+
+    authFeaturesPromise = (async () => {
+      const res = await fetcher<ResultDto<AuthFeatures>>('/api/auth/features')
+      if (!res.success || !res.data) {
+        throw new Error(res.message || '获取认证配置失败')
+      }
+      authFeatures.value = res.data
+      return res.data
+    })()
+
+    try {
+      return await authFeaturesPromise
+    }
+    finally {
+      authFeaturesPromise = null
     }
   }
 
@@ -211,8 +249,8 @@ export const useUserStore = defineStore('user', () => {
       if (!device.ip) {
         device.ip = '未知'
       }
-      device.createTime = dayjs(device.createdAt!).format('YYYY年MM月DD日 HH:mm')
-      device.lastLoginTime = dayjs(device.updatedAt!).format('YYYY年MM月DD日 HH:mm')
+      device.createTime = formatDeviceTime(device.createdAt)
+      device.lastLoginTime = formatDeviceTime(device.updatedAt)
       return device
     })
   }
@@ -244,9 +282,11 @@ export const useUserStore = defineStore('user', () => {
   return {
     profilePulled,
     profile,
+    authFeatures,
     logged,
     login,
     logout,
+    getAuthFeatures,
     pullProfile,
     updateProfile,
     removeProfile,

@@ -4,8 +4,13 @@ allowBuilds:
   '@parcel/watcher': false
   esbuild: false
   unrs-resolver: false
+  vue-demi: false
 
 ignoredBuiltDependencies:
   - '@parcel/watcher'
   - esbuild
   - unrs-resolver
+  - vue-demi
+
+minimumReleaseAgeExclude:
+  - tailwindcss@4.3.2
