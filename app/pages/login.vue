@@ -130,8 +130,8 @@ function thirdPartyLogin(url: string, title = '第三方登录', width = 500, he
   loading.value = true
   error.value = undefined
   window.addEventListener('message', thirdPartyLoginCallback)
-  const top = (window.screen.height - width) / 2
-  const left = (window.screen.width - height) / 2
+  const top = (window.screen.height - height) / 2
+  const left = (window.screen.width - width) / 2
   const page = window.open(url, title, `popup,width=${width},height=${height},top=${top},left=${left}`)
   if (!page) {
     loading.value = false

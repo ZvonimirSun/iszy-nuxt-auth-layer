@@ -12,7 +12,7 @@ const props = defineProps<{
 const userStore = useUserStore()
 const authFeatures = await userStore.getAuthFeatures()
 const toast = useToast()
-const publicRegister = computed(() => authFeatures.authMode !== 'sso' && authFeatures.publicRegister)
+const publicRegister = computed(() => authFeatures.publicRegister)
 const loginPath = computed(() => `/login?redirect=${encodeURIComponent(props.loginRedirect || '/settings')}`)
 const adminRoleNames = new Set([RoleEnum.ADMIN, RoleEnum.SUPERADMIN]) as Set<string>
 const showAdminLink = computed(() => {
@@ -71,8 +71,8 @@ async function bind(type: ThirdPartyType, title = '绑定第三方登录', width
   }
   binding.value = true
   window.addEventListener('message', bindCallback)
-  const top = (window.screen.height - width) / 2
-  const left = (window.screen.width - height) / 2
+  const top = (window.screen.height - height) / 2
+  const left = (window.screen.width - width) / 2
   const page = window.open(`/api/oauth/${type}/bind`, title, `popup,width=${width},height=${height},top=${top},left=${left}`)
   if (!page) {
     binding.value = false
