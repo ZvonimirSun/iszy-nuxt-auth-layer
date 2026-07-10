@@ -23,13 +23,13 @@ const showAdminLink = computed(() => {
 
 /** ************** 三方登录绑定 ***************/
 
-type ThirdPartyType = 'github' | 'linuxdo' | 'sso'
+type LoginProviderType = 'github' | 'linuxdo' | 'sso'
 type ThirdPartyProfile = {
-  [key in ThirdPartyType]?: string
+  [key in LoginProviderType]?: string
 }
 
 const thirdParties: {
-  type: ThirdPartyType
+  type: Exclude<LoginProviderType, 'sso'>
   title: string
   icon: string
 }[] = [
@@ -43,12 +43,13 @@ const thirdParties: {
     title: 'LINUX DO',
     icon: 'i-iszy-auth:linuxdo',
   },
-  {
-    type: 'sso',
-    title: authFeatures.sso.title,
-    icon: 'i-lucide:shield-check',
-  },
 ]
+
+const ssoProvider = {
+  type: 'sso' as const,
+  title: authFeatures.sso.title,
+  icon: 'i-lucide:shield-check',
+}
 
 const binding = ref(false)
 let pollIndex: number | null = null
@@ -61,7 +62,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('message', bindCallback)
 })
 
-async function bind(type: ThirdPartyType, title = '绑定第三方登录', width = 500, height = 600) {
+async function bind(type: LoginProviderType, title = '绑定第三方登录', width = 500, height = 600) {
   if (isThirdPartyBound(type)) {
     return
   }
@@ -117,7 +118,7 @@ async function bindCallback(e: MessageEvent<{
   }
 }
 
-async function unbind(type: ThirdPartyType) {
+async function unbind(type: LoginProviderType) {
   if (!isThirdPartyBound(type)) {
     return
   }
@@ -130,7 +131,7 @@ async function unbind(type: ThirdPartyType) {
   }
 }
 
-function isThirdPartyBound(type: ThirdPartyType) {
+function isThirdPartyBound(type: LoginProviderType) {
   return !!(userStore.profile as ThirdPartyProfile | undefined)?.[type]
 }
 
@@ -300,6 +301,22 @@ async function removeDevice(options: {
                 绑定
               </UButton>
             </div>
+          </div>
+        </div>
+        <div class="flex items-start gap-2">
+          <div class="w-20 text-right">
+            {{ ssoProvider.title }}:
+          </div>
+          <div class="flex gap-2 items-center">
+            <div class="flex gap-2 items-center">
+              <UIcon :name="ssoProvider.icon" class="size-5" />
+            </div>
+            <UButton v-if="isThirdPartyBound(ssoProvider.type)" variant="link" class="p-0 cursor-pointer" @click="unbind(ssoProvider.type)">
+              解绑
+            </UButton>
+            <UButton v-else variant="link" class="p-0 cursor-pointer" @click="bind(ssoProvider.type, ssoProvider.title)">
+              绑定
+            </UButton>
           </div>
         </div>
       </div>
