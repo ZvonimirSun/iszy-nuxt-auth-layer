@@ -303,8 +303,8 @@ async function removeDevice(options: {
             </div>
           </div>
         </div>
-        <div class="flex items-start gap-2">
-          <div class="w-20 text-right">
+        <div class="flex items-center gap-2">
+          <div class="w-20 text-right leading-8">
             {{ ssoProvider.title }}:
           </div>
           <div class="flex gap-2 items-center">
