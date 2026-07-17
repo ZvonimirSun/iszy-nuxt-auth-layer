@@ -36,6 +36,8 @@
     "mitt": "^3.0.1",
     "ms": "^2.1.3",
     "ofetch": "^1.5.1",
+    "unstorage": "^1.17.5",
+    "vue-router": "^5.1.0",
     "zod": "^4.4.3"
   },
   "peerDependencies": {

@@ -150,7 +150,7 @@ function thirdPartyLogin(url: string, title = '第三方登录', width = 500, he
 }
 
 function ssoLogin() {
-  thirdPartyLogin('/api/oauth/sso', `${authFeatures.sso.title} 登录`, 500, 640)
+  thirdPartyLogin('/api/oauth/sso', `${authFeatures.sso.title} 登录`, 560, 760)
 }
 
 async function thirdPartyLoginCallback(e: MessageEvent<{

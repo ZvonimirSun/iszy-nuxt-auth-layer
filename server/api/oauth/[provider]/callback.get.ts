@@ -19,6 +19,7 @@ function renderCallbackPage(title: string, origin: string, body: string, payload
 
 export default defineEventHandler(async (event) => {
   const { title } = usePublicConfig()
+  const { provider } = event.context.params as { provider: string }
   const url = getRequestURL(event)
   const query = getQuery(event)
   const state = query.state as string
@@ -52,6 +53,12 @@ export default defineEventHandler(async (event) => {
     return renderCallbackPage(`${title} - 绑定成功`, url.origin, '验证成功', {
       success: true,
     })
+  }
+
+  const pendingToken = typeof query.pending_token === 'string' ? query.pending_token : undefined
+  if (provider === 'sso' && pendingToken) {
+    const completionId = await createSsoCompletion(event, pendingToken)
+    return sendRedirect(event, `/sso/complete?flow=${completionId}`)
   }
 
   const code = query.code as string
