@@ -1,6 +1,6 @@
 {
   "name": "@zvonimirsun/iszy-nuxt-auth-layer",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "type": "module",
   "private": false,
   "packageManager": "pnpm@11.7.0",
