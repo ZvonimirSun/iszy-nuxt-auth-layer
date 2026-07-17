@@ -4,7 +4,7 @@ import type { LocationQuery } from 'vue-router'
 import * as z from 'zod'
 import { useUserStore } from '##stores/user'
 
-const { title } = usePublicConfig()
+const { title, apiOrigin } = usePublicConfig()
 const router = useRouter()
 const route = useRoute()
 const toast = useToast()
@@ -156,9 +156,18 @@ function ssoLogin() {
 async function thirdPartyLoginCallback(e: MessageEvent<{
   success: boolean
   message?: string
+  type?: string
+  data?: {
+    pending_token?: string
+    pendingToken?: string
+  }
 }>) {
   const page = e.source as Window
-  if (e.origin !== window.location.origin) {
+  if (!isAllowedOAuthMessageOrigin(e.origin)) {
+    return
+  }
+  if (e.data.type === 'sso_completion_required') {
+    await startSsoCompletion(page, e.data.data?.pending_token || e.data.data?.pendingToken)
     return
   }
   if (e.data.success == null) {
@@ -177,6 +186,56 @@ async function thirdPartyLoginCallback(e: MessageEvent<{
   }
   else {
     error.value = e.data.message || '登录失败'
+  }
+}
+
+async function startSsoCompletion(page: Window, pendingToken?: string) {
+  if (!pendingToken) {
+    loading.value = false
+    error.value = 'SSO 登录缺少待绑定凭证'
+    return
+  }
+
+  try {
+    const res = await $fetch<{
+      success: boolean
+      message: string
+      data?: {
+        flow: string
+      }
+    }>('/api/oauth/sso/completion/start', {
+      method: 'POST',
+      body: {
+        pendingToken,
+      },
+    })
+
+    if (!res.success || !res.data?.flow) {
+      throw new Error(res.message || 'SSO 登录流程创建失败')
+    }
+    page.location.href = `/sso/complete?flow=${encodeURIComponent(res.data.flow)}`
+  }
+  catch (err) {
+    loading.value = false
+    window.removeEventListener('message', thirdPartyLoginCallback)
+    if (pollIndex != null) {
+      clearInterval(pollIndex)
+      pollIndex = null
+    }
+    error.value = err instanceof Error ? err.message : 'SSO 登录流程创建失败'
+    page.close()
+  }
+}
+
+function isAllowedOAuthMessageOrigin(origin: string) {
+  if (origin === window.location.origin) {
+    return true
+  }
+  try {
+    return origin === new URL(apiOrigin).origin
+  }
+  catch {
+    return false
   }
 }
 
