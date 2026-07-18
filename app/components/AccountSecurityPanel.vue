@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import type { TableColumn } from '@nuxt/ui'
+import type { FormSubmitEvent, TableColumn } from '@nuxt/ui'
 import type { Device } from '@zvonimirsun/iszy-common'
 import { RoleEnum } from '@zvonimirsun/iszy-common'
+import * as z from 'zod'
 import { useUserStore } from '##stores/user'
 
 const props = defineProps<{
@@ -20,6 +21,96 @@ const showAdminLink = computed(() => {
     return adminRoleNames.has(role.name)
   })
 })
+
+/** ************** 账户资料 ***************/
+
+const profileSaving = ref(false)
+const passwordSaving = ref(false)
+const profileState = reactive({
+  userName: '',
+  nickName: '',
+  email: '',
+  mobile: '',
+})
+const passwordState = reactive({
+  oldPasswd: '',
+  passwd: '',
+  confirmPasswd: '',
+})
+
+const profileSchema = z.object({
+  userName: z.string().trim().min(1, '请输入用户名'),
+  nickName: z.string().trim().min(1, '请输入昵称'),
+  email: z.string().trim().refine(value => !value || z.email().safeParse(value).success, '请输入有效的邮箱地址'),
+  mobile: z.string().trim().optional(),
+})
+const passwordSchema = z.object({
+  oldPasswd: z.string().optional(),
+  passwd: z.string().min(1, '请输入新密码'),
+  confirmPasswd: z.string().min(1, '请再次输入新密码'),
+}).refine(data => data.passwd === data.confirmPasswd, {
+  message: '两次输入的新密码不一致',
+  path: ['confirmPasswd'],
+})
+
+type ProfileSchema = z.output<typeof profileSchema>
+type PasswordSchema = z.output<typeof passwordSchema>
+
+watch(
+  () => userStore.profile,
+  (profile) => {
+    profileState.userName = profile?.userName || ''
+    profileState.nickName = profile?.nickName || ''
+    profileState.email = profile?.email || ''
+    profileState.mobile = profile?.mobile || ''
+  },
+  { immediate: true },
+)
+
+async function updateProfile(payload: FormSubmitEvent<ProfileSchema>) {
+  if (profileSaving.value) {
+    return
+  }
+  profileSaving.value = true
+  try {
+    await userStore.updateCurrentUser({
+      userName: payload.data.userName.trim(),
+      nickName: payload.data.nickName.trim(),
+      email: payload.data.email?.trim() || undefined,
+      mobile: payload.data.mobile?.trim() || undefined,
+    })
+    toast.add({ title: '账户资料已更新', color: 'success' })
+  }
+  catch (error) {
+    toast.add({ title: '更新账户资料失败', description: getErrorMessage(error), color: 'error' })
+  }
+  finally {
+    profileSaving.value = false
+  }
+}
+
+async function updatePassword(payload: FormSubmitEvent<PasswordSchema>) {
+  if (passwordSaving.value) {
+    return
+  }
+  passwordSaving.value = true
+  try {
+    await userStore.updateCurrentUser({
+      oldPasswd: payload.data.oldPasswd || undefined,
+      passwd: payload.data.passwd,
+    })
+    passwordState.oldPasswd = ''
+    passwordState.passwd = ''
+    passwordState.confirmPasswd = ''
+    toast.add({ title: '登录密码已更新', color: 'success' })
+  }
+  catch (error) {
+    toast.add({ title: '更新登录密码失败', description: getErrorMessage(error), color: 'error' })
+  }
+  finally {
+    passwordSaving.value = false
+  }
+}
 
 /** ************** 三方登录绑定 ***************/
 
@@ -127,7 +218,7 @@ async function unbind(type: LoginProviderType) {
     toast.add({ title: '解绑成功', color: 'success' })
   }
   catch (e) {
-    toast.add({ title: '解绑失败', description: (e as Error).message, color: 'error' })
+    toast.add({ title: '解绑失败', description: getErrorMessage(e), color: 'error' })
   }
 }
 
@@ -205,6 +296,14 @@ async function removeDevice(options: {
   }
   catch (e) {}
 }
+
+function getErrorMessage(error: unknown) {
+  const normalized = error as {
+    data?: { message?: string }
+    message?: string
+  }
+  return normalized.data?.message || normalized.message || '操作失败'
+}
 </script>
 
 <template>
@@ -247,9 +346,79 @@ async function removeDevice(options: {
         </ULink>
       </div>
       <USeparator />
-      <h3 class="text-xl text-pretty font-semibold text-highlighted">
-        账户信息
-      </h3>
+      <div class="flex items-center gap-3">
+        <h3 class="text-xl text-pretty font-semibold text-highlighted">
+          账户信息
+        </h3>
+        <UModal title="编辑账户资料">
+          <UButton
+            size="sm"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide:edit-3"
+          >
+            编辑资料
+          </UButton>
+          <template #body>
+            <UForm
+              :schema="profileSchema"
+              :state="profileState"
+              class="flex flex-col gap-4"
+              @submit="updateProfile"
+            >
+              <UFormField label="用户名" name="userName" required>
+                <UInput v-model="profileState.userName" class="w-full" autocomplete="username" />
+              </UFormField>
+              <UFormField label="昵称" name="nickName" required>
+                <UInput v-model="profileState.nickName" class="w-full" autocomplete="nickname" />
+              </UFormField>
+              <UFormField label="邮箱" name="email">
+                <UInput v-model="profileState.email" class="w-full" type="email" autocomplete="email" />
+              </UFormField>
+              <UFormField label="手机号" name="mobile">
+                <UInput v-model="profileState.mobile" class="w-full" autocomplete="tel" />
+              </UFormField>
+              <UButton block type="submit" :loading="profileSaving">
+                保存
+              </UButton>
+            </UForm>
+          </template>
+        </UModal>
+        <UModal title="设置或修改登录密码">
+          <UButton
+            size="sm"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide:key-round"
+          >
+            设置密码
+          </UButton>
+          <template #body>
+            <UForm
+              :schema="passwordSchema"
+              :state="passwordState"
+              class="flex flex-col gap-4"
+              @submit="updatePassword"
+            >
+              <p class="text-sm text-muted">
+                已有登录密码时需要填写旧密码；历史 SSO 无密码账户可直接设置新密码。
+              </p>
+              <UFormField label="旧密码" name="oldPasswd">
+                <UInput v-model="passwordState.oldPasswd" class="w-full" type="password" autocomplete="current-password" />
+              </UFormField>
+              <UFormField label="新密码" name="passwd" required>
+                <UInput v-model="passwordState.passwd" class="w-full" type="password" autocomplete="new-password" />
+              </UFormField>
+              <UFormField label="确认新密码" name="confirmPasswd" required>
+                <UInput v-model="passwordState.confirmPasswd" class="w-full" type="password" autocomplete="new-password" />
+              </UFormField>
+              <UButton block type="submit" :loading="passwordSaving">
+                保存
+              </UButton>
+            </UForm>
+          </template>
+        </UModal>
+      </div>
       <div class="flex flex-col items-start gap-2">
         <div class="flex items-center gap-2">
           <div class="w-20 text-right">
@@ -272,7 +441,15 @@ async function removeDevice(options: {
             邮箱:
           </div>
           <div>
-            {{ userStore.profile.email }}
+            {{ userStore.profile.email || '-' }}
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-20 text-right">
+            手机号:
+          </div>
+          <div>
+            {{ userStore.profile.mobile || '-' }}
           </div>
         </div>
         <div class="flex items-center gap-2">

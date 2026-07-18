@@ -1,5 +1,5 @@
-import type { Device, ResultDto } from '@zvonimirsun/iszy-common'
-import type { AuthFeatures, PublicSimpleUser } from '##shared/types/auth'
+import type { Device, PublicUser, ResultDto } from '@zvonimirsun/iszy-common'
+import type { AuthFeatures, PublicSimpleUser, UpdateUser } from '##shared/types/auth'
 import type { Fetcher } from '##shared/types/fetcher'
 import { acceptHMRUpdate, defineStore } from 'pinia'
 
@@ -237,6 +237,18 @@ export const useUserStore = defineStore('user', () => {
     await pullProfile(true)
   }
 
+  async function updateCurrentUser(profile: UpdateUser) {
+    const res = await $fetch<ResultDto<PublicUser>>('/api/user/me', {
+      method: 'PUT',
+      body: profile,
+    })
+    if (!res.success || !res.data) {
+      throw new Error(res.message || '更新账户信息失败')
+    }
+    await updateProfile(res.data)
+    return res.data
+  }
+
   async function getDevices(): Promise<(Device & {
     createTime?: string
     lastLoginTime?: string
@@ -290,6 +302,7 @@ export const useUserStore = defineStore('user', () => {
     pullProfile,
     updateProfile,
     removeProfile,
+    updateCurrentUser,
     thirdPartyUnbind,
     getDevices,
     removeDevice,
