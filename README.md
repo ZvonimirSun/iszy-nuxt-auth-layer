@@ -20,10 +20,16 @@ pnpm add @zvonimirsun/iszy-nuxt-auth-layer
 ```ts
 export default defineNuxtConfig({
   extends: ['@zvonimirsun/iszy-nuxt-auth-layer'],
+  runtimeConfig: {
+    apiOrigin: '',
+    public: {
+      apiOrigin: '',
+    },
+  },
 })
 ```
 
-消费方应用需要按部署环境配置 API origin、Redis 连接信息和 session cookie 选项。
+消费方应用需要按部署环境配置 API origin、Redis 连接信息和 session cookie 选项。服务端请求优先使用私有的 `apiOrigin`，未配置时回退到 `public.apiOrigin`；OAuth 浏览器跳转和客户端直连仍使用公开地址。
 
 ## 文档
 

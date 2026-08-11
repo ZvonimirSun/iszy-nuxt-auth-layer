@@ -22,6 +22,7 @@ export default defineNuxtConfig({
   },
   compatibilityDate: '2026-06-30',
   runtimeConfig: {
+    apiOrigin: '',
     public: {
       title: '',
       apiOrigin: '',
