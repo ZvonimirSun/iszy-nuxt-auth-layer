@@ -209,7 +209,7 @@ async function bindCallback(e: MessageEvent<{
   }
 }
 
-async function unbind(type: LoginProviderType) {
+async function unbind(type: Exclude<LoginProviderType, 'sso'>) {
   if (!isThirdPartyBound(type)) {
     return
   }
@@ -401,7 +401,7 @@ function getErrorMessage(error: unknown) {
               @submit="updatePassword"
             >
               <p class="text-sm text-muted">
-                已有登录密码时需要填写旧密码；历史 SSO 无密码账户可直接设置新密码。
+                已有登录密码时需要填写旧密码；无密码账户可直接设置新密码。
               </p>
               <UFormField label="旧密码" name="oldPasswd">
                 <UInput v-model="passwordState.oldPasswd" class="w-full" type="password" autocomplete="current-password" />
@@ -488,9 +488,9 @@ function getErrorMessage(error: unknown) {
             <div class="flex gap-2 items-center">
               <UIcon :name="ssoProvider.icon" class="size-5" />
             </div>
-            <UButton v-if="isThirdPartyBound(ssoProvider.type)" variant="link" class="p-0 cursor-pointer" @click="unbind(ssoProvider.type)">
-              解绑
-            </UButton>
+            <UBadge v-if="isThirdPartyBound(ssoProvider.type)" color="success" variant="subtle">
+              已绑定
+            </UBadge>
             <UButton v-else variant="link" class="p-0 cursor-pointer" @click="bind(ssoProvider.type, ssoProvider.title)">
               绑定
             </UButton>
