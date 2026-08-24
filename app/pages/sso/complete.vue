@@ -70,7 +70,7 @@ const createSchema = z.object({
   userName: z.string().trim().min(1, '请输入用户名'),
   nickName: z.string().trim().min(1, '请输入昵称'),
   email: z.string().trim().refine(value => !value || z.email().safeParse(value).success, '请输入有效的邮箱地址'),
-  passwd: z.string().min(1, '请输入密码'),
+  passwd: z.string().optional(),
 })
 
 type BindSchema = z.output<typeof bindSchema>
@@ -275,8 +275,8 @@ function getErrorMessage(error: unknown, fallback: string) {
             <UFormField label="邮箱" name="email">
               <UInput v-model="createState.email" class="w-full" type="email" autocomplete="email" placeholder="请输入邮箱（可选）" />
             </UFormField>
-            <UFormField label="密码" name="passwd" required>
-              <UInput v-model="createState.passwd" class="w-full" type="password" autocomplete="new-password" placeholder="请输入密码" />
+            <UFormField label="密码（可选）" name="passwd" hint="不设置时仅可通过 SSO 登录">
+              <UInput v-model="createState.passwd" class="w-full" type="password" autocomplete="new-password" placeholder="可稍后在账户设置中添加" />
             </UFormField>
             <UAlert v-if="submitError" color="error" icon="i-lucide:info" :title="submitError" />
             <div class="grid grid-cols-2 gap-3">

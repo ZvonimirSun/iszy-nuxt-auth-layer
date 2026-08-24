@@ -41,7 +41,7 @@ export interface SsoCompletionCreateBody {
   userName: string
   nickName: string
   email?: string
-  passwd: string
+  passwd?: string
 }
 
 export interface AuthTokenData {

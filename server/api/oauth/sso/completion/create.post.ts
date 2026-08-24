@@ -14,10 +14,10 @@ export default defineEventHandler(async (event): Promise<ResultDto<PublicSimpleU
   const nickName = body?.nickName?.trim()
   const email = body?.email?.trim() || undefined
 
-  if (!userName || !nickName || !body?.passwd) {
+  if (!userName || !nickName) {
     throw createError({
       statusCode: 400,
-      message: '用户名、昵称和密码不能为空',
+      message: '用户名和昵称不能为空',
     })
   }
 
@@ -30,7 +30,7 @@ export default defineEventHandler(async (event): Promise<ResultDto<PublicSimpleU
         userName,
         nickName,
         email,
-        passwd: body.passwd,
+        passwd: body.passwd || undefined,
       },
     })
   }
