@@ -45,8 +45,6 @@ export const useUserStore = defineStore('user', () => {
     profile?: PublicSimpleUser
   }>> | null = null
   let authFeaturesPromise: Promise<AuthFeatures> | null = null
-  let pullProfileResolve: ((value: ResultDto<{ logged: boolean, profile?: PublicSimpleUser }>) => void) | null
-  let pullProfileReject: ((value: unknown) => void) | null
   let pullProfileAbortController: AbortController | null = null // 用于中断请求
 
   async function login({ userName, password }: {
@@ -137,80 +135,52 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  async function pullProfile(force?: boolean, fetcher: Fetcher = $fetch) {
-    // 1. 非强制刷新且已拉取成功，直接返回
+  function pullProfile(force = false, fetcher: Fetcher = $fetch) {
     if (profilePulled.value && !force) {
-      return true
+      return Promise.resolve({
+        success: true,
+        data: { logged: logged.value, profile: profile.value },
+        message: '',
+      })
     }
-
-    // 2. 强制刷新：中断正在进行的请求并重置状态
-    if (force) {
-      // 中断之前的请求
-      if (pullProfileAbortController) {
-        pullProfileAbortController.abort()
-        pullProfileAbortController = null
-      }
-      // 重置 Promise 相关状态
-      pullProfilePromise = null
-      pullProfileResolve = null
-      pullProfileReject = null
-    }
-
-    // 3. 非强制刷新且已有请求中，返回现有 Promise
     if (pullProfilePromise && !force) {
       return pullProfilePromise
     }
 
-    // 4. 创建新的 Promise 并发起请求
-    pullProfilePromise = new Promise<ResultDto<{
-      logged: boolean
-      profile?: PublicSimpleUser
-    }>>((resolve, reject) => {
-      pullProfileResolve = resolve
-      pullProfileReject = reject
-    })
-    try {
-      // 创建 AbortController 用于中断请求
-      pullProfileAbortController = new AbortController()
+    pullProfileAbortController?.abort()
+    const controller = new AbortController()
+    pullProfileAbortController = controller
+    const request = (async () => {
       const res = await fetcher<ResultDto<{
         logged: boolean
         profile?: PublicSimpleUser
-      }>>(`/api/auth/check`, {
-        signal: pullProfileAbortController.signal, // 关联中断信号
-      })
-      if (res && res.success) {
-        await updateProfile(res.data?.profile, fetcher)
-        profilePulled.value = true
-        // 安全调用 resolve（避免空值）
-        pullProfileResolve?.(res)
+      }>>('/api/auth/check', { signal: controller.signal })
+      if (controller.signal.aborted) {
+        throw new DOMException('Aborted', 'AbortError')
       }
-      else {
-        await removeProfile(fetcher)
-        // 安全调用 reject
-        pullProfileReject?.(new Error(res?.message || '拉取用户信息失败'))
+      if (!res.success || !res.data) {
+        throw new Error(res.message || '获取登录状态失败')
       }
-    }
-    catch (error) {
-      // 处理中断错误（无需提示，属于正常取消）
-      if ((error as Error).name !== 'AbortError') {
-        await removeProfile(fetcher)
-        console.error('拉取用户信息异常:', error)
+      profile.value = res.data.logged ? res.data.profile : undefined
+      profilePulled.value = true
+      authEvents.emit('profileUpdated', { profile: profile.value, fetcher })
+      return res
+    })()
+    const pending = request.finally(() => {
+      if (pullProfileAbortController === controller) {
+        pullProfileAbortController = null
+        pullProfilePromise = null
       }
-      // 安全调用 reject
-      pullProfileReject?.(error)
-    }
-    finally {
-      // 清理资源
-      pullProfileAbortController = null
-      pullProfileResolve = null
-      pullProfileReject = null
-      // 关键：请求完成后重置 Promise（避免复用旧 Promise）
-      pullProfilePromise = null
-    }
-    return pullProfilePromise
+    })
+    pullProfilePromise = pending
+    return pending
   }
 
   async function updateProfile(data?: PublicSimpleUser, fetcher?: Fetcher) {
+    pullProfileAbortController?.abort()
+    pullProfileAbortController = null
+    pullProfilePromise = null
+    profilePulled.value = true
     profile.value = data
     authEvents.emit('profileUpdated', {
       profile: data,

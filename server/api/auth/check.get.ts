@@ -28,9 +28,14 @@ export default defineEventHandler(async (event): Promise<ResultDto<{
         message: '已登录',
       }
     }
+    throw createError({ statusCode: 503, statusMessage: 'Authentication service unavailable' })
   }
-  catch {
-    // fall through to the unauthenticated response below
+  catch (error) {
+    const status = (error as { statusCode?: number, response?: { status?: number } }).response?.status
+      || (error as { statusCode?: number }).statusCode
+    if (status !== 401) {
+      throw createError({ statusCode: 503, statusMessage: 'Authentication service unavailable' })
+    }
   }
 
   return {

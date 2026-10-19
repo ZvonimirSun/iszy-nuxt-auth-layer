@@ -85,8 +85,12 @@ const schema = z.object({
 
 type Schema = z.output<typeof schema>
 
+const mounted = ref(false)
 onMounted(() => {
-  if (userStore.logged) {
+  mounted.value = true
+})
+const stopAutoRedirect = watch(() => mounted.value && userStore.logged, (logged) => {
+  if (logged) {
     router.push({ path: redirect.value || '/', query: otherQuery.value })
     toast.add({ title: '已登录', description: '您已经登录，无需再次登录', color: 'info' })
   }
@@ -108,6 +112,7 @@ async function login(payload: FormSubmitEvent<Schema>) {
     toast.add({ title: '网络异常', description: '请检查您的网络连接', color: 'error' })
     return
   }
+  stopAutoRedirect()
   try {
     loading.value = true
     error.value = undefined
@@ -127,6 +132,7 @@ function thirdPartyLogin(url: string, title = '第三方登录', width = 500, he
     toast.add({ title: '登录中', description: '登录进行中，请勿重复点击', color: 'warning' })
     return
   }
+  stopAutoRedirect()
   loading.value = true
   error.value = undefined
   window.addEventListener('message', thirdPartyLoginCallback)

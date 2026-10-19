@@ -1,6 +1,6 @@
 {
   "name": "@zvonimirsun/iszy-nuxt-auth-layer",
-  "version": "0.2.6",
+  "version": "0.3.0",
   "type": "module",
   "private": false,
   "packageManager": "pnpm@11.7.0",
@@ -27,6 +27,7 @@
     "LICENSE"
   ],
   "scripts": {
+    "test": "node --test tests/*.test.mjs",
     "dev": "nuxt dev .playground",
     "postinstall": "nuxt prepare .playground",
     "typecheck": "nuxt typecheck .playground"
@@ -57,6 +58,7 @@
     "pinia": "^3.0.4",
     "tailwindcss": "^4.3.2",
     "typescript": "^6.0.3",
+    "vue": "^3.5.39",
     "vue-tsc": "^3.3.3"
   },
   "publishConfig": {

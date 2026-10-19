@@ -31,6 +31,12 @@ export default defineNuxtConfig({
 
 消费方应用需要按部署环境配置 API origin、Redis 连接信息和 session cookie 选项。服务端请求优先使用私有的 `apiOrigin`，未配置时回退到 `public.apiOrigin`；OAuth 浏览器跳转和客户端直连仍使用公开地址。
 
+### 公开页面缓存
+
+`runtimeConfig.session.renewalScope` 默认为 `all`，保持所有响应续期 session 的行为。
+采用共享 HTML 缓存的应用应设置为 `api`：仅 `/api` 及其子路径续期，页面和静态资源响应不访问 Redis、不写 session cookie。API 响应使用 `private, no-store`。
+消费方还必须将用户资料加载移到客户端，禁止将用户资料序列化进共享页面；需要权限的页面须等待认证和权限检查完成。layer 不自动更改消费方的认证启动时机。
+
 ## 文档
 
 详细架构、运行时配置和接入说明请查看 [DeepWiki](https://deepwiki.com/ZvonimirSun/iszy-nuxt-auth-layer)。

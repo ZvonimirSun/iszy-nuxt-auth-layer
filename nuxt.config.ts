@@ -33,6 +33,7 @@ export default defineNuxtConfig({
       password: undefined,
     },
     session: {
+      renewalScope: 'all' as 'all' | 'api',
       cookieName: 'NUXT_SESSION_ID',
       maxAge: '7d',
       domain: '',
