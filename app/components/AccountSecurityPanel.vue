@@ -144,14 +144,22 @@ const ssoProvider = {
 
 const binding = ref(false)
 let pollIndex: number | null = null
+let bindingChannel: BroadcastChannel | null = null
+let bindingPopup: Window | null = null
 
 onBeforeUnmount(() => {
+  cleanupBinding()
+})
+
+function cleanupBinding() {
+  bindingChannel?.close()
+  bindingChannel = null
+  bindingPopup = null
   if (pollIndex != null) {
     clearInterval(pollIndex)
     pollIndex = null
   }
-  window.removeEventListener('message', bindCallback)
-})
+}
 
 async function bind(type: LoginProviderType, title = '绑定第三方登录', width = 500, height = 600) {
   if (isThirdPartyBound(type)) {
@@ -162,11 +170,18 @@ async function bind(type: LoginProviderType, title = '绑定第三方登录', wi
     return
   }
   binding.value = true
-  window.addEventListener('message', bindCallback)
+  cleanupBinding()
+  const channelName = `iszy-oauth-${crypto.randomUUID()}`
+  bindingChannel = new BroadcastChannel(channelName)
+  bindingChannel.onmessage = e => void bindCallback(e.data)
   const top = (window.screen.height - height) / 2
   const left = (window.screen.width - width) / 2
-  const page = window.open(`/api/oauth/${type}/bind`, title, `popup,width=${width},height=${height},top=${top},left=${left}`)
+  const url = new URL(`/api/oauth/${type}/bind`, window.location.origin)
+  url.searchParams.set('popupChannel', channelName)
+  const page = window.open(url.href, title, `popup,width=${width},height=${height},top=${top},left=${left}`)
+  bindingPopup = page
   if (!page) {
+    cleanupBinding()
     binding.value = false
     toast.add({ title: '登录失败', description: '请允许浏览器弹出窗口！', color: 'error' })
     return
@@ -174,38 +189,30 @@ async function bind(type: LoginProviderType, title = '绑定第三方登录', wi
   pollIndex = window.setInterval(() => {
     if (page.closed) {
       binding.value = false
-      if (pollIndex != null) {
-        clearInterval(pollIndex)
-        pollIndex = null
-      }
+      cleanupBinding()
     }
   }, 500)
 }
 
-async function bindCallback(e: MessageEvent<{
-  success: boolean
-  message?: string
-}>) {
-  const page = e.source as Window
-  if (e.origin !== window.location.origin) {
+async function bindCallback(data: unknown) {
+  if (!data || typeof data !== 'object' || !('success' in data) || typeof data.success !== 'boolean') {
     return
   }
-  if (e.data.success == null) {
-    return
-  }
+  const page = bindingPopup
+  cleanupBinding()
   binding.value = false
-  window.removeEventListener('message', bindCallback)
-  if (pollIndex != null) {
-    clearInterval(pollIndex)
-    pollIndex = null
-  }
-  page.close()
-  if (e.data.success) {
-    await userStore.pullProfile(true)
-    toast.add({ title: '绑定成功', color: 'success' })
+  page?.close()
+  if (data.success) {
+    try {
+      await userStore.pullProfile(true)
+      toast.add({ title: '绑定成功', color: 'success' })
+    }
+    catch (e) {
+      toast.add({ title: '刷新账号信息失败', description: getErrorMessage(e), color: 'error' })
+    }
   }
   else {
-    toast.add({ title: '绑定失败', description: e.data.message, color: 'error' })
+    toast.add({ title: '绑定失败', description: 'message' in data && typeof data.message === 'string' ? data.message : '操作失败', color: 'error' })
   }
 }
 

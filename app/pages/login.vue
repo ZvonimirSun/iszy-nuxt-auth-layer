@@ -29,6 +29,9 @@ const error = ref<string>()
 const loading = ref(false)
 const activeLoginTab = ref(isSsoMode.value ? 'sso' : 'local')
 let pollIndex: number | null = null
+let popupChannel: BroadcastChannel | null = null
+let loginPopup: Window | null = null
+let popupPending = false
 
 const query = route.query
 if (query) {
@@ -97,12 +100,19 @@ const stopAutoRedirect = watch(() => mounted.value && userStore.logged, (logged)
 })
 
 onBeforeUnmount(() => {
+  cleanupPopup()
+})
+
+function cleanupPopup() {
+  popupPending = false
+  popupChannel?.close()
+  popupChannel = null
+  loginPopup = null
   if (pollIndex != null) {
     clearInterval(pollIndex)
     pollIndex = null
   }
-  window.removeEventListener('message', thirdPartyLoginCallback)
-})
+}
 
 async function login(payload: FormSubmitEvent<Schema>) {
   if (loading.value) {
@@ -133,24 +143,29 @@ function thirdPartyLogin(url: string, title = '第三方登录', width = 500, he
     return
   }
   stopAutoRedirect()
+  cleanupPopup()
   loading.value = true
   error.value = undefined
-  window.addEventListener('message', thirdPartyLoginCallback)
+  popupPending = true
+  const popupUrl = new URL(url, window.location.origin)
+  const channelName = `iszy-oauth-${crypto.randomUUID()}`
+  popupChannel = new BroadcastChannel(channelName)
+  popupChannel.onmessage = e => void finishThirdPartyLogin(e.data)
+  popupUrl.searchParams.set('popupChannel', channelName)
   const top = (window.screen.height - height) / 2
   const left = (window.screen.width - width) / 2
-  const page = window.open(url, title, `popup,width=${width},height=${height},top=${top},left=${left}`)
+  const page = window.open(popupUrl.href, title, `popup,width=${width},height=${height},top=${top},left=${left}`)
+  loginPopup = page
   if (!page) {
+    cleanupPopup()
     loading.value = false
     toast.add({ title: '登录失败', description: '请允许浏览器弹出窗口！', color: 'error' })
     return
   }
   pollIndex = window.setInterval(() => {
     if (page.closed) {
+      cleanupPopup()
       loading.value = false
-      if (pollIndex != null) {
-        clearInterval(pollIndex)
-        pollIndex = null
-      }
     }
   }, 500)
 }
@@ -159,27 +174,28 @@ function ssoLogin() {
   thirdPartyLogin('/api/oauth/sso', `${authFeatures.sso.title} 登录`, 560, 760)
 }
 
-async function thirdPartyLoginCallback(e: MessageEvent<{
-  success: boolean
-  message?: string
-}>) {
-  const page = e.source as Window
-  if (e.origin !== window.location.origin || e.data.success == null) {
+async function finishThirdPartyLogin(data: unknown) {
+  if (!popupPending || !data || typeof data !== 'object' || !('success' in data) || typeof data.success !== 'boolean') {
     return
   }
+  const page = loginPopup
+  cleanupPopup()
   loading.value = false
-  window.removeEventListener('message', thirdPartyLoginCallback)
-  if (pollIndex != null) {
-    clearInterval(pollIndex)
-    pollIndex = null
-  }
-  page.close()
-  if (e.data.success) {
-    await userStore.pullProfile(true)
-    _afterLogin()
+  page?.close()
+  if (data.success) {
+    try {
+      await userStore.pullProfile(true)
+      if (!userStore.logged) {
+        throw new Error('登录状态未生效，请重试')
+      }
+      _afterLogin()
+    }
+    catch (e) {
+      error.value = e instanceof Error ? e.message : '获取登录状态失败，请刷新后重试'
+    }
   }
   else {
-    error.value = e.data.message || '登录失败'
+    error.value = 'message' in data && typeof data.message === 'string' ? data.message : '登录失败'
   }
 }
 

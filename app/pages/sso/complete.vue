@@ -16,12 +16,21 @@ definePageMeta({
 const { title } = usePublicConfig()
 const route = useRoute()
 const requestFetch = useRequestFetch()
+const popupChannelName = typeof route.query.popupChannel === 'string'
+  && /^iszy-oauth-[\w-]{1,64}$/.test(route.query.popupChannel)
+  ? route.query.popupChannel
+  : undefined
+const popupChannel = import.meta.client && popupChannelName
+  ? new BroadcastChannel(popupChannelName)
+  : undefined
 const step = ref<'choice' | 'bind' | 'create'>('choice')
 const loading = ref(false)
 const submitError = ref<string>()
 const completionExpired = ref(false)
 const flowId = typeof route.query.flow === 'string' ? route.query.flow : ''
 const completionQuery = `?flow=${encodeURIComponent(flowId)}`
+
+onBeforeUnmount(() => popupChannel?.close())
 
 useSeoMeta({
   title: () => `完成 SSO 登录 - ${title}`,
@@ -130,8 +139,7 @@ async function submitCompletion(url: string, body: SsoCompletionBindBody | SsoCo
 }
 
 async function finishLogin() {
-  if (window.opener && !window.opener.closed) {
-    window.opener.postMessage({ success: true }, window.location.origin)
+  if (notifyLoginPopup({ success: true })) {
     window.close()
     return
   }
@@ -140,12 +148,19 @@ async function finishLogin() {
 
 async function returnToLogin() {
   const message = terminalError.value || submitError.value || 'SSO 登录未完成'
-  if (window.opener && !window.opener.closed) {
-    window.opener.postMessage({ success: false, message }, window.location.origin)
+  if (notifyLoginPopup({ success: false, message })) {
     window.close()
     return
   }
   await navigateTo('/login')
+}
+
+function notifyLoginPopup(payload: { success: boolean, message?: string }) {
+  if (!popupChannel) {
+    return false
+  }
+  popupChannel.postMessage(payload)
+  return true
 }
 
 function getErrorStatus(error: unknown) {

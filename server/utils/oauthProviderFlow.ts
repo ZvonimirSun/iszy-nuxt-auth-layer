@@ -1,17 +1,35 @@
 import type { PublicUser, ResultDto } from '@zvonimirsun/iszy-common'
 import type { H3Event } from 'h3'
 
-function renderCallbackPage(title: string, origin: string, body: string, payload: { success: boolean, message?: string }) {
+function readPopupChannel(value: unknown) {
+  return typeof value === 'string' && /^iszy-oauth-[\w-]{1,64}$/.test(value) ? value : undefined
+}
+
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"']/g, char => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    '\'': '&#39;',
+  })[char]!)
+}
+
+function renderCallbackPage(title: string, body: string, payload: { success: boolean, message?: string }, popupChannel?: string) {
   return `
     <head>
-      <title>${title}</title>
+      <title>${escapeHtml(title)}</title>
       <meta charset="UTF-8">
     </head>
     <body>
-      ${body}
+      ${escapeHtml(body)}
       <script>
-        if (window.opener && !window.opener.closed) {
-          window.opener.postMessage(${JSON.stringify(payload)}, '${origin}');
+        const popupChannel = ${JSON.stringify(popupChannel || '')};
+        if (popupChannel) {
+          const channel = new BroadcastChannel(popupChannel);
+          channel.postMessage(${JSON.stringify(payload).replace(/</g, '\\u003c')});
+          channel.close();
+          window.close();
         }
       </script>
     </body>
@@ -23,7 +41,8 @@ export async function redirectToOAuthProvider(event: H3Event, provider: string) 
   const url = getRequestURL(event)
   const state = randomState()
 
-  await setState(state, {})
+  const popupChannel = readPopupChannel(getQuery(event).popupChannel)
+  await setState(state, { popupChannel })
 
   return sendRedirect(event, `${apiOrigin}/oauth/${provider}?state=${state}&client=${encodeURIComponent(url.origin)}`)
 }
@@ -38,8 +57,10 @@ export async function redirectToOAuthProviderBind(event: H3Event, provider: stri
   const code = res.data!
   const state = randomState()
 
+  const popupChannel = readPopupChannel(getQuery(event).popupChannel)
   await setState(state, {
     isBind: true,
+    popupChannel,
   })
 
   return sendRedirect(event, `${apiOrigin}/oauth/${provider}/bind?state=${state}&client=${encodeURIComponent(url.origin)}&access_token=${code}`)
@@ -47,7 +68,6 @@ export async function redirectToOAuthProviderBind(event: H3Event, provider: stri
 
 export async function handleOAuthProviderCallback(event: H3Event, provider: string) {
   const { title } = usePublicConfig()
-  const url = getRequestURL(event)
   const query = getQuery(event)
   const state = query.state as string
 
@@ -71,21 +91,22 @@ export async function handleOAuthProviderCallback(event: H3Event, provider: stri
   if (stateData.isBind) {
     const error = query.error as string | undefined
     if (error) {
-      return renderCallbackPage(`${title} - 绑定失败`, url.origin, error, {
+      return renderCallbackPage(`${title} - 绑定失败`, error, {
         success: false,
         message: error,
-      })
+      }, stateData.popupChannel)
     }
 
-    return renderCallbackPage(`${title} - 绑定成功`, url.origin, '验证成功', {
+    return renderCallbackPage(`${title} - 绑定成功`, '验证成功', {
       success: true,
-    })
+    }, stateData.popupChannel)
   }
 
   const pendingToken = typeof query.pending_token === 'string' ? query.pending_token : undefined
   if (provider === 'sso' && pendingToken) {
     const completionId = await createSsoCompletion(event, pendingToken)
-    return sendRedirect(event, `/sso/complete?flow=${completionId}`)
+    const channelQuery = stateData.popupChannel ? `&popupChannel=${encodeURIComponent(stateData.popupChannel)}` : ''
+    return sendRedirect(event, `/sso/complete?flow=${completionId}${channelQuery}`)
   }
 
   const code = query.code as string
@@ -121,13 +142,13 @@ export async function handleOAuthProviderCallback(event: H3Event, provider: stri
   }
 
   if (errorMessage) {
-    return renderCallbackPage(`${title} - 登录失败`, url.origin, errorMessage, {
+    return renderCallbackPage(`${title} - 登录失败`, errorMessage, {
       success: false,
       message: errorMessage,
-    })
+    }, stateData.popupChannel)
   }
 
-  return renderCallbackPage(`${title} - 登录成功`, url.origin, '登录成功', {
+  return renderCallbackPage(`${title} - 登录成功`, '登录成功', {
     success: true,
-  })
+  }, stateData.popupChannel)
 }

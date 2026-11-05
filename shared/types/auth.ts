@@ -16,6 +16,7 @@ export interface SessionTombstone {
 
 export interface OAuthStateData {
   isBind?: boolean
+  popupChannel?: string
 }
 
 export interface SsoCompletionState {
