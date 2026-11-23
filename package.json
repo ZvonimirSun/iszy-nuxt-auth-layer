@@ -35,6 +35,7 @@
   },
   "dependencies": {
     "@zvonimirsun/iszy-common": "^1.2.2",
+    "ipaddr.js": "^2.5.0",
     "mitt": "^3.0.1",
     "ms": "^2.1.3",
     "ofetch": "^1.5.1",

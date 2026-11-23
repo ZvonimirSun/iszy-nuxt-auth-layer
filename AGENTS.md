@@ -35,6 +35,7 @@ app/
     sso/complete.vue                # SSO 首次登录账户完成页
   stores/user.ts                    # 通用用户状态
   utils/authEvents.ts               # 登录态事件广播
+  utils/ipGeo.ts                    # 基于 GeoJS 的 IP 地域查询与去重缓存
   components/AccountSecurityPanel.vue
 server/
   middleware/session.ts             # httpOnly session 读取、写入与轮换

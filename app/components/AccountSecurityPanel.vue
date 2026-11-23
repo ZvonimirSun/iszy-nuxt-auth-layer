@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import type { FormSubmitEvent, TableColumn } from '@nuxt/ui'
 import type { Device } from '@zvonimirsun/iszy-common'
+import type { IpGeoInfo } from '../utils/ipGeo'
 import { RoleEnum } from '@zvonimirsun/iszy-common'
 import * as z from 'zod'
 import { useUserStore } from '##stores/user'
+import { getCachedIpGeo, lookupIpGeo, parseDeviceIp } from '../utils/ipGeo'
 
 const props = defineProps<{
   adminOrigin?: string
   loginRedirect?: string
 }>()
 
+const publicConfig = usePublicConfig()
 const userStore = useUserStore()
 const authFeatures = await userStore.getAuthFeatures()
 const toast = useToast()
@@ -268,6 +271,17 @@ const deviceColumns: TableColumn<DeviceRow>[] = [
     size: 240,
   },
   {
+    id: 'ipLocation',
+    header: '登录地域',
+    meta: {
+      class: {
+        th: 'text-center',
+        td: 'text-center',
+      },
+    },
+    size: 200,
+  },
+  {
     id: 'operations',
     header: '操作',
     enableHiding: false,
@@ -282,10 +296,100 @@ const deviceColumns: TableColumn<DeviceRow>[] = [
 ]
 
 const devices = ref<DeviceRow[]>([])
+const ipGeoMap = ref<Record<string, IpGeoInfo | null>>({})
+const ipGeoLoading = ref<Record<string, boolean>>({})
+
+async function resolveDeviceLocations(list: DeviceRow[]) {
+  const uniqueRawIps = Array.from(new Set(
+    list
+      .map(device => device.ip?.trim())
+      .filter((ip): ip is string => Boolean(ip)),
+  ))
+
+  const pendingGroups = new Map<string, string[]>()
+
+  for (const rawIp of uniqueRawIps) {
+    const parsed = parseDeviceIp(rawIp)
+    if (!parsed) {
+      ipGeoMap.value[rawIp] = null
+      ipGeoLoading.value[rawIp] = false
+      continue
+    }
+
+    const cached = getCachedIpGeo(rawIp, publicConfig.geojsOrigin)
+    if (cached) {
+      ipGeoMap.value[rawIp] = cached
+      ipGeoLoading.value[rawIp] = false
+      continue
+    }
+
+    const group = pendingGroups.get(parsed.ip) || []
+    group.push(rawIp)
+    pendingGroups.set(parsed.ip, group)
+  }
+
+  await Promise.all(
+    Array.from(pendingGroups.entries()).map(async ([normalizedIp, rawIps]) => {
+      for (const rawIp of rawIps) {
+        ipGeoLoading.value[rawIp] = true
+      }
+      try {
+        const info = await lookupIpGeo(normalizedIp, {
+          origin: publicConfig.geojsOrigin,
+        })
+        for (const rawIp of rawIps) {
+          ipGeoMap.value[rawIp] = info
+        }
+      }
+      catch {
+        for (const rawIp of rawIps) {
+          if (ipGeoMap.value[rawIp] === undefined) {
+            ipGeoMap.value[rawIp] = null
+          }
+        }
+      }
+      finally {
+        for (const rawIp of rawIps) {
+          ipGeoLoading.value[rawIp] = false
+        }
+      }
+    }),
+  )
+}
+
+function isDeviceLocationLoading(ip?: string) {
+  const key = ip?.trim()
+  return Boolean(key && ipGeoLoading.value[key])
+}
+
+function getDeviceLocationText(ip?: string) {
+  const key = ip?.trim()
+  if (!key) {
+    return '未知'
+  }
+  return ipGeoMap.value[key]?.label || '未知'
+}
+
+function getDeviceLocationTitle(ip?: string) {
+  const key = ip?.trim()
+  if (!key) {
+    return '未知'
+  }
+  const info = ipGeoMap.value[key]
+  if (!info) {
+    return '未知'
+  }
+  if (info.label && info.organization) {
+    return `${info.label} (${info.organization})`
+  }
+  return info.label || info.organization || '未知'
+}
 
 async function manageDevices() {
   try {
-    devices.value = await userStore.getDevices()
+    const list = await userStore.getDevices()
+    devices.value = list
+    void resolveDeviceLocations(list)
   }
   catch (e) {
     toast.add({ title: '获取设备列表失败', description: (e as Error).message, color: 'error' })
@@ -565,6 +669,19 @@ function getErrorMessage(error: unknown) {
 
                 <template #ip-cell="{ row }">
                   <span class="font-mono" :title="row.original.ip || '未知'">{{ row.original.ip || '未知' }}</span>
+                </template>
+
+                <template #ipLocation-cell="{ row }">
+                  <span v-if="isDeviceLocationLoading(row.original.ip)" class="text-xs text-muted">
+                    查询中...
+                  </span>
+                  <span
+                    v-else
+                    :class="getDeviceLocationText(row.original.ip) === '未知' ? 'text-muted' : ''"
+                    :title="getDeviceLocationTitle(row.original.ip)"
+                  >
+                    {{ getDeviceLocationText(row.original.ip) }}
+                  </span>
                 </template>
 
                 <template #operations-cell="{ row }">

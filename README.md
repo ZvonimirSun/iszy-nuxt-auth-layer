@@ -24,12 +24,15 @@ export default defineNuxtConfig({
     apiOrigin: '',
     public: {
       apiOrigin: '',
+      geojsOrigin: 'https://get.geojs.io',
     },
   },
 })
 ```
 
 消费方应用需要按部署环境配置 API origin、Redis 连接信息和 session cookie 选项。服务端请求优先使用私有的 `apiOrigin`，未配置时回退到 `public.apiOrigin`；OAuth 浏览器跳转和客户端直连仍使用公开地址。
+
+`runtimeConfig.public.geojsOrigin`（环境变量 `NUXT_PUBLIC_GEOJS_ORIGIN`）默认为 `https://get.geojs.io`，用于登录设备列表查询 IP 地域信息，可按需配置为自定义反代地址。
 
 ### 公开页面缓存
 

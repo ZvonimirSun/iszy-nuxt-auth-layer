@@ -26,6 +26,7 @@ export default defineNuxtConfig({
     public: {
       title: '',
       apiOrigin: '',
+      geojsOrigin: 'https://get.geojs.io',
     },
     redis: {
       host: '',
